@@ -1,16 +1,15 @@
 cmake_minimum_required(VERSION 3.23)
 project(lppg)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Dependencies
+include(FetchContent)
 
 # raylib
 set(RAYLIB_VERSION 4.2.0)
 find_package(raylib ${RAYLIB_VERSION} QUIET) # QUIET or REQUIRED
 if (NOT raylib_FOUND) # If there's none, fetch and build raylib
-    include(FetchContent)
     FetchContent_Declare(
             raylib
             URL https://github.com/raysan5/raylib/archive/refs/tags/${RAYLIB_VERSION}.tar.gz
@@ -26,17 +25,22 @@ endif()
 
 # FastNoiseLite
 FetchContent_Declare(
-        fastnoiselite
-        GIT_REPOSITORY https://github.com/Auburn/FastNoiseLite
-        GIT_TAG        8c45924f086edcb93b8876eb351c07d5e982e47f # release v1.0.3
+    fastnoiselite
+    GIT_REPOSITORY https://github.com/Auburn/FastNoiseLite
+    GIT_TAG        8c45924f086edcb93b8876eb351c07d5e982e47f # release v1.0.3
 )
 FetchContent_Populate(fastnoiselite)
 add_library(fastnoiselite INTERFACE)
 target_include_directories(fastnoiselite INTERFACE ${fastnoiselite_SOURCE_DIR}/Cpp/)
 
-add_executable(${PROJECT_NAME} main.cpp src/LPPG.cpp src/LPPG.h)
-target_link_libraries(${PROJECT_NAME} PRIVATE raylib)
-target_link_libraries(${PROJECT_NAME} PRIVATE fastnoiselite)
+# CGAL
+#find_package(CGAL)
+
+# include src
+add_subdirectory(src)
+
+# compiler flags
+target_link_options(lppg PRIVATE -O2 -g -Wall)
 
 # Web Configurations
 if (${PLATFORM} STREQUAL "Web")
