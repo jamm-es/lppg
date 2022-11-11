@@ -33,8 +33,14 @@ FetchContent_Populate(fastnoiselite)
 add_library(fastnoiselite INTERFACE)
 target_include_directories(fastnoiselite INTERFACE ${fastnoiselite_SOURCE_DIR}/Cpp/)
 
-# CGAL
-#find_package(CGAL)
+# delaunator-cpp
+FetchContent_Declare(
+    delaunator
+    GIT_REPOSITORY https://github.com/c0rp3n/delaunator-cpp
+)
+FetchContent_Populate(delaunator)
+add_library(delaunator INTERFACE)
+target_include_directories(delaunator INTERFACE ${delaunator_SOURCE_DIR}/include/)
 
 # include src
 add_subdirectory(src)

@@ -17,4 +17,5 @@ target_link_libraries(terrain
         raylib
         fastnoiselite
         utils
+        chunk_manager
     )

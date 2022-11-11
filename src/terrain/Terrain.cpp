@@ -8,35 +8,22 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "fastnoiselite.h"
-#include "PoissonDiskSampler.h"
+#include "Triangulation.h"
 
 #include <iostream>
 
 using namespace std;
 
-Terrain::Terrain(int hms, int ds, float scale_factor) {
-    height_map_size_ = hms;
-    display_size_ = ds;
+Terrain::Terrain() {
+    height_map_size_ = 500;
+    display_size_ = 40;
+    scale_factor_ = 1;
     enable_mountains_ = false;
     enable_ground_ = true;
+}
 
-    // generate grid of simplex2 noise
-    int base_noise_increments = 500;
-    FastNoiseLite base_noise;
-    base_noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
-    base_noise.SetFractalType(FastNoiseLite::FractalType_None);
-    vector<float> base_data((base_noise_increments+1) * (base_noise_increments+1));
-    for(int x = 0; x <= base_noise_increments; ++x) {
-        for(int y = 0; y <= base_noise_increments; ++y) {
-            float x_inc = static_cast<float>(x)/base_noise_increments*display_size_;
-            float y_inc = static_cast<float>(y)/base_noise_increments*display_size_;
-            base_data[x*(base_noise_increments+1)+y] = base_noise.GetNoise(x_inc, y_inc);
-        }
-    }
-
-
-    auto* noise_data = (float*) malloc((height_map_size_+1)*(height_map_size_+1) * sizeof(float));
-    fill(noise_data, noise_data+(height_map_size_+1)*(height_map_size_+1), 0);
+float Terrain::gen_height_at_coord(float x, float z) const {
+    float height = 0;
 
     // generate mountain noise
     if(enable_mountains_) {
@@ -45,18 +32,14 @@ Terrain::Terrain(int hms, int ds, float scale_factor) {
         mountain_noise.SetFractalType(FastNoiseLite::FractalType_FBm);
         mountain_noise.SetFrequency(0.002);
         mountain_noise.SetFractalWeightedStrength(0.3);
-        for(int x = 0; x <= height_map_size_; ++x) {
-            for(int y = 0; y <= height_map_size_; ++y) {
-                noise_data[x*(height_map_size_ + 1) + y] = 20*mountain_noise.GetNoise(x*scale_factor, y*scale_factor)/scale_factor;
-            }
-        }
+        height += 100*mountain_noise.GetNoise(x*scale_factor_, z*scale_factor_)/scale_factor_;
     }
 
     // generate ground bumps with decreasing frequency
     if(enable_ground_) {
-        float ground_freq = 0.01;
+        float ground_freq = 0.005;
         float ground_freq_multiplier = 2;
-        float ground_amp = 0.2;
+        float ground_amp = 4;
         float ground_amp_multiplier = 0.5;
         float ground_iterations = 3;
         for(int i = 0; i < ground_iterations; ++i) {
@@ -64,36 +47,89 @@ Terrain::Terrain(int hms, int ds, float scale_factor) {
             ground_noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2S);
             ground_noise.SetFractalType(FastNoiseLite::FractalType_None);
             ground_noise.SetFrequency(ground_freq);
-            for(int x = 0; x <= height_map_size_; ++x) {
-                for(int y = 0; y <= height_map_size_; ++y) {
-                    noise_data[x*(height_map_size_ + 1) + y] += ground_amp*ground_noise.GetNoise(x*scale_factor, y*scale_factor)/scale_factor;
-                }
-            }
+
+            height += ground_amp*ground_noise.GetNoise(x*scale_factor_, z*scale_factor_)/scale_factor_;
+
             ground_freq *= ground_freq_multiplier;
             ground_amp *= ground_amp_multiplier;
         }
     }
-
-    Mesh mesh = gen_mesh_from_heightmap(noise_data, height_map_size_+1, height_map_size_+1);
-    free(noise_data);
-
-    terrain_ = LoadModelFromMesh(mesh);
-    /*
-    Texture uv_test_texture = LoadTexture("C:/Users/bfcda/CLionProjects/lppg/src/terrain/uv_test.png");
-    terrain_.materials->maps[MATERIAL_MAP_DIFFUSE].texture = uv_test_texture;
-     */
+    return height;
 }
 
-Terrain::~Terrain() {
-    UnloadModel(terrain_);
-}
+Mesh Terrain::gen_mesh_from_points(vector<Vector3> points) const {
+    Color base_color = {20, 97, 33, 255};
+    vector<float> heights(points.size());
+    for(int i = 0; i < points.size(); ++i) {
+        heights[i] = points[i].y;
+    }
+    float heightmap_min = *min_element(heights.begin(), heights.end());
+    float heightmap_max = *max_element(heights.begin(), heights.end());
 
-void Terrain::draw() {
-    DrawModel(terrain_, {static_cast<float>(-display_size_) / 2, 0, static_cast<float>(-display_size_) / 2}, 1, WHITE);
-}
-
-Mesh Terrain::gen_mesh_from_triangulation() {
     Mesh mesh = {0};
+
+    Triangulation triangulation(points);
+    vector<size_t> indices = triangulation.getIndices();
+
+    mesh.vertexCount = indices.size();
+    mesh.triangleCount = mesh.vertexCount / 3;
+
+    mesh.vertices = (float*) malloc(mesh.vertexCount*3*sizeof(float));
+    mesh.normals = (float*) malloc(mesh.vertexCount*3*sizeof(float));
+    mesh.texcoords = (float*) malloc(mesh.vertexCount*2*sizeof(float));
+    fill(mesh.texcoords, mesh.texcoords+(mesh.vertexCount*2), 0);
+    mesh.colors = (unsigned char*) malloc(mesh.vertexCount*4*sizeof(unsigned char));
+
+    for(int i = 0; i < mesh.triangleCount; ++i) {
+
+        // set vertices
+        Vector3 vert_1 = points[indices[3*i]];
+        Vector3 vert_2 = points[indices[3*i+1]];
+        Vector3 vert_3 = points[indices[3*i+2]];
+
+        mesh.vertices[9*i] = vert_1.x;
+        mesh.vertices[9*i+1] = vert_1.y;
+        mesh.vertices[9*i+2] = vert_1.z;
+
+        mesh.vertices[9*i+3] = vert_2.x;
+        mesh.vertices[9*i+4] = vert_2.y;
+        mesh.vertices[9*i+5] = vert_2.z;
+
+        mesh.vertices[9*i+6] = vert_3.x;
+        mesh.vertices[9*i+7] = vert_3.y;
+        mesh.vertices[9*i+8] = vert_3.z;
+
+        // set normals
+        Vector3 leg_1 = Vector3Subtract(vert_1, vert_2);
+        Vector3 leg_2 = Vector3Subtract(vert_1, vert_3);
+        Vector3 norm = Vector3Normalize(Vector3CrossProduct(leg_1, leg_2));
+
+        for(int j = 0; j < 3; ++j) {
+            mesh.normals[9*i+3*j] = norm.x;
+            mesh.normals[9*i+3*j+1] = norm.y;
+            mesh.normals[9*i+3*j+2] = norm.z;
+        }
+
+        int max_amplitude = 20;
+        float hm_scale = (vert_1.y-heightmap_min)/(heightmap_max-heightmap_min);
+        Color color = {
+            static_cast<unsigned char>(hm_scale*(base_color.r+rand()%(max_amplitude*2+1)-max_amplitude)),
+            static_cast<unsigned char>(hm_scale*(base_color.g+rand()%(max_amplitude*2+1)-max_amplitude)),
+            static_cast<unsigned char>(hm_scale*(base_color.b+rand()%(max_amplitude*2+1)-max_amplitude)),
+            255
+        };
+        // set colors
+        for(int j = 0; j < 3; ++j) {
+            mesh.colors[12*i+4*j] = color.r;
+            mesh.colors[12*i+4*j+1] = color.g;
+            mesh.colors[12*i+4*j+2] = color.b;
+            mesh.colors[12*i+4*j+3] = color.a;
+        }
+
+    }
+
+    UploadMesh(&mesh, false);
+
     return mesh;
 }
 

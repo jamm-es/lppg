@@ -1,9 +1,7 @@
 #include <string>
-#include <cmath>
 #include "raylib.h"
 #include "raymath.h"
-#include "Terrain.h"
-#include "PoissonDiskSampler.h"
+#include "ChunkManager.h"
 
 using namespace std;
 
@@ -16,12 +14,7 @@ int main() {
     int display_size = 40;
     float scale_factor = 1;
 
-    Terrain terrain(height_map_size, display_size, scale_factor);
-
-
-
-    PoissonDiskSampler poisson_disk_sampler(20, 6);
-    vector<Vector2> samples = poisson_disk_sampler.sample(400);
+    ChunkManager chunk_manager(5);
 
     // camera.target - camera.position should always be normalized.
     Camera3D camera = {
@@ -96,22 +89,25 @@ int main() {
         }
 
 
+        // load new chunks
+        chunk_manager.load(camera.position.x, camera.position.z);
+
+
         // drawing
         BeginDrawing();
         ClearBackground(WHITE);
         BeginMode3D(camera);
-        //DrawGrid(20, 1.0f);
-        terrain.draw();
+        chunk_manager.draw();
         EndMode3D();
         DrawFPS(5, 5);
         string coords_text = "coords: " + to_string(camera.position.x) + ", " + to_string(camera.position.y) + ", " + to_string(camera.position.z);
-        DrawText(coords_text.c_str(), 5, GetScreenHeight()-50, 20, ORANGE);
+        DrawText(coords_text.c_str(), 5, GetScreenHeight()-75, 20, ORANGE);
         string speed_text = "speed: " + to_string(cam_move_speed);
-        DrawText(speed_text.c_str(), 5, GetScreenHeight()-25, 20, ORANGE);
-        for(const auto& point : samples) {
-            DrawCircleV(point, 5, RED);
-        }
+        DrawText(speed_text.c_str(), 5, GetScreenHeight()-50, 20, ORANGE);
+        string draw_text = "frame time (ms): " + to_string(GetFrameTime()*1000);
+        DrawText(draw_text.c_str(), 5, GetScreenHeight()-25, 20, ORANGE);
         EndDrawing();
+
     }
     CloseWindow();
 }
