@@ -144,7 +144,7 @@ bool PoissonDiskSampler::try_adding_point(ChunkCoord chunk_coord, Vector2 point,
 // based on Roberts' improved version of Birdson's algorithm
 // http://extremelearning.com.au/an-improved-version-of-bridsons-algorithm-n-for-poisson-disc-sampling/
 // https://www.cs.ubc.ca/~rbridson/docs/bridson-siggraph07-poissondisk.pdf
-vector<Vector2> PoissonDiskSampler::gen_points_in_chunk(ChunkCoord chunk_coord) {
+vector<Vector2> PoissonDiskSampler::get_points_in_chunk(ChunkCoord chunk_coord) {
     // return samples if this chunk is already done
     if(finished_.find(chunk_coord) != finished_.end()) {
         vector<Vector2> points(finished_[chunk_coord].size());

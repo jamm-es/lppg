@@ -57,7 +57,7 @@ float Terrain::gen_height_at_coord(float x, float z) const {
     return height;
 }
 
-Mesh Terrain::gen_mesh_from_points(vector<Vector3> points) const {
+Mesh Terrain::gen_mesh_from_points(const vector<Vector3>& points) const {
     Color base_color = {20, 97, 33, 255};
     vector<float> heights(points.size());
     for(int i = 0; i < points.size(); ++i) {
@@ -68,10 +68,7 @@ Mesh Terrain::gen_mesh_from_points(vector<Vector3> points) const {
 
     Mesh mesh = {0};
 
-    Triangulation triangulation(points);
-    vector<size_t> indices = triangulation.getIndices();
-
-    mesh.vertexCount = indices.size();
+    mesh.vertexCount = points.size();
     mesh.triangleCount = mesh.vertexCount / 3;
 
     mesh.vertices = (float*) malloc(mesh.vertexCount*3*sizeof(float));
@@ -83,9 +80,9 @@ Mesh Terrain::gen_mesh_from_points(vector<Vector3> points) const {
     for(int i = 0; i < mesh.triangleCount; ++i) {
 
         // set vertices
-        Vector3 vert_1 = points[indices[3*i]];
-        Vector3 vert_2 = points[indices[3*i+1]];
-        Vector3 vert_3 = points[indices[3*i+2]];
+        Vector3 vert_1 = points[3*i];
+        Vector3 vert_2 = points[3*i+1];
+        Vector3 vert_3 = points[3*i+2];
 
         mesh.vertices[9*i] = vert_1.x;
         mesh.vertices[9*i+1] = vert_1.y;
@@ -111,7 +108,7 @@ Mesh Terrain::gen_mesh_from_points(vector<Vector3> points) const {
         }
 
         int max_amplitude = 20;
-        float hm_scale = (vert_1.y-heightmap_min)/(heightmap_max-heightmap_min);
+        float hm_scale = (vert_1.y+5)/(10);
         Color color = {
             static_cast<unsigned char>(hm_scale*(base_color.r+rand()%(max_amplitude*2+1)-max_amplitude)),
             static_cast<unsigned char>(hm_scale*(base_color.g+rand()%(max_amplitude*2+1)-max_amplitude)),
@@ -249,7 +246,7 @@ Mesh Terrain::gen_mesh_from_heightmap(float heightmap[], int width, int height) 
             mesh.normals[cur_quad*18+17] = tri_2_normal.z;
 
             // colors
-            float hm_scale = (heightmap[row*width+col]-heightmap_min)/(heightmap_max-heightmap_min);
+            float hm_scale = (heightmap[row*width+col]+5)/(10);
             auto color_bright = (unsigned char) (hm_scale*255);
             int max_amplitude = 20;
             Color tri_1_color = {

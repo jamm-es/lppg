@@ -49,7 +49,7 @@ private:
     bool try_adding_point(ChunkCoord chunk_coord, Vector2 point, vector<int>& active);
 public:
     PoissonDiskSampler(float chunk_size, float r, bool is_truly_random=false, int k = 10, float epsilon = 0.001, int bg_grid_length=20);
-    vector<Vector2> gen_points_in_chunk(ChunkCoord chunk_coord);
+    vector<Vector2> get_points_in_chunk(ChunkCoord chunk_coord);
     void DEBUG_draw(ChunkCoord tl, int l) const;
 };
 

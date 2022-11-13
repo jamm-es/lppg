@@ -17,7 +17,7 @@ private:
 public:
     Terrain();
     float gen_height_at_coord(float x, float z) const;
-    Mesh gen_mesh_from_points(vector<Vector3> points) const;
+    Mesh gen_mesh_from_points(const vector<Vector3>& points) const;
 };
 
 

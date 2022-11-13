@@ -88,6 +88,17 @@ int main() {
             camera.position = Vector3Add(camera.position, {0, -cam_move_speed, 0});
         }
 
+        // change speed
+        if(IsKeyDown(KEY_COMMA)) {
+            cam_move_speed += 0.01;
+        }
+        if(IsKeyDown(KEY_PERIOD)) {
+            cam_move_speed -= 0.01;
+        }
+        if(cam_move_speed < 0) {
+            cam_move_speed = 0;
+        }
+
 
         // load new chunks
         chunk_manager.load(camera.position.x, camera.position.z);

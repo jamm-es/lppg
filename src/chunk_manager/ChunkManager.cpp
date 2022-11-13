@@ -4,9 +4,11 @@
 
 #include <thread>
 #include <mutex>
+#include <array>
 #include "ChunkManager.h"
 #include "raylib.h"
 #include "raymath.h"
+#include "Triangulation.h"
 
 #include <iostream>
 
@@ -20,13 +22,36 @@ ChunkManager::ChunkManager(int render_distance, float chunk_size, float start_x,
 }
 
 Mesh ChunkManager::make_mesh(ChunkCoord coord) {
-    vector<Vector2> xz_points = sampler_.gen_points_in_chunk(coord);
-    vector<Vector3> points(xz_points.size());
-    for(int i = 0; i < points.size(); ++i) {
-        points[i].x = xz_points[i].x;
-        points[i].z = xz_points[i].y;
-        points[i].y = terrain_.gen_height_at_coord(points[i].x, points[i].z);
+    vector<Vector2> center_points = sampler_.get_points_in_chunk(coord);
+
+    // add outer points adjacent to chunk coord (so skip the center chunk)
+    array<vector<Vector2>, 8> outer_points;
+    int index_op = 0;
+    for(int i = -1; i <= 1; ++i) {
+        for(int j = -1; j <= 1; ++j) {
+            if(i == 0 && j == 0) {
+                continue;
+            }
+            ChunkCoord outer_coord(coord.x+i, coord.z+j);
+            outer_points[index_op++] = sampler_.get_points_in_chunk(outer_coord);
+        }
     }
+
+    Triangulation t(coord, chunk_size_, center_points, outer_points);
+    vector<Vector2> p = t.get_points();
+    vector<Vector3> points(p.size());
+    for(int i = 0; i < p.size(); ++i) {
+        points[i].x = p[i].x;
+        points[i].z = p[i].y;
+        points[i].y = terrain_.gen_height_at_coord(p[i].x, p[i].y);
+    }
+
+//    vector<Vector3> points(xz_points.size());
+//    for(int i = 0; i < points.size(); ++i) {
+//        points[i].x = xz_points[i].x;
+//        points[i].z = xz_points[i].y;
+//        points[i].y = terrain_.gen_height_at_coord(points[i].x, points[i].z);
+//    }
     return terrain_.gen_mesh_from_points(points);
 }
 
