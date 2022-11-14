@@ -6,6 +6,7 @@
 #include <cmath>
 #include <algorithm>
 #include <cstdlib>
+#include <mutex>
 #include "raymath.h"
 
 using namespace std;
@@ -146,75 +147,82 @@ bool PoissonDiskSampler::try_adding_point(ChunkCoord chunk_coord, Vector2 point,
 // https://www.cs.ubc.ca/~rbridson/docs/bridson-siggraph07-poissondisk.pdf
 vector<Vector2> PoissonDiskSampler::get_points_in_chunk(ChunkCoord chunk_coord) {
     // return samples if this chunk is already done
-    if(finished_.find(chunk_coord) != finished_.end()) {
-        vector<Vector2> points(finished_[chunk_coord].size());
+    {
+        shared_lock s_lock(m_);
+        auto it = finished_.find(chunk_coord);
+        if (it != finished_.end()) {
+            vector<Vector2> points(it->second.size());
+            for (int i = 0; i < it->second.size(); ++i) {
+                points[i] = samples_.at(it->second.at(i));
+            }
+            return points;
+        }
+    }
+    {
+        // need to make points in this chunk, so we're writing - lock mutex
+        scoped_lock lock(m_);
+        vector<int> active;
+
+        // no active points in stasis, so set new seed point
+        if(stasis_.find(chunk_coord) == stasis_.end()) {
+            uniform_real_distribution<float> gen_start_pt(chunk_size_/2.0-radius_, chunk_size_/2.0+radius_);
+            Vector2 starting_pt = {
+                .x = gen_start_pt(gen_) + chunk_size_*chunk_coord.x,
+                .y = gen_start_pt(gen_) + chunk_size_*chunk_coord.z
+            };
+            try_adding_point(chunk_coord, starting_pt, active);
+        }
+
+            // copy stasis points to active and finished and delete from stasis_
+        else {
+            active.resize(stasis_[chunk_coord].size());
+            active = stasis_[chunk_coord]; // copy stasis
+            finished_[chunk_coord] = move(stasis_[chunk_coord]); // move stasis
+            stasis_.erase(chunk_coord);
+        }
+
+        // ensures random numbers generated henceforth don't generally repeat
+        uniform_real_distribution<float> rand_dist(0, 1);
+
+        while(!active.empty()) {
+            int rand_active_index = uniform_int_distribution(0, static_cast<int>(active.size() - 1))(gen_);
+            Vector2 active_point = samples_[active[rand_active_index]];
+            float rand_seed = rand_dist(gen_); // used to offset theta
+
+            // checks points radially around active point for an ok candidate
+            bool found_cand = false;
+            for(int i = 0; i < k_; ++i) {
+                float theta = 2 * PI * (rand_seed + 1.0 * i / k_);
+                float r = radius_ + epsilon_; // epsilon ensures distance from active_point
+                Vector2 delta = {r * cos(theta), r * sin(theta)};
+                Vector2 cand = Vector2Add(active_point, delta);
+
+                // point adding was successful!
+                if(try_adding_point(chunk_coord, cand, active)) {
+                    found_cand = true;
+                    break;
+                }
+            }
+
+            // no valid candidates - remove active_point from active list
+            if(!found_cand) {
+                int swap = active.back();
+                active.pop_back();
+
+                // don't do swap if the point to remove was already the backmsot
+                if(rand_active_index != active.size()) {
+                    active[rand_active_index] = swap;
+                }
+            }
+        }
+
+        vector<Vector2> output(finished_[chunk_coord].size());
         for(int i = 0; i < finished_[chunk_coord].size(); ++i) {
-            points[i] = samples_[finished_[chunk_coord][i]];
-        }
-        return points;
-    }
-
-    vector<int> active;
-
-    // no active points in stasis, so set new seed point
-    if(stasis_.find(chunk_coord) == stasis_.end()) {
-        uniform_real_distribution<float> gen_start_pt(chunk_size_/2.0-radius_, chunk_size_/2.0+radius_);
-        Vector2 starting_pt = {
-            .x = gen_start_pt(gen_) + chunk_size_*chunk_coord.x,
-            .y = gen_start_pt(gen_) + chunk_size_*chunk_coord.z
-        };
-        try_adding_point(chunk_coord, starting_pt, active);
-    }
-
-    // copy stasis points to active and finished and delete from stasis_
-    else {
-        active.resize(stasis_[chunk_coord].size());
-        active = stasis_[chunk_coord]; // copy stasis
-        finished_[chunk_coord] = move(stasis_[chunk_coord]); // move stasis
-        stasis_.erase(chunk_coord);
-    }
-
-    // ensures random numbers generated henceforth don't generally repeat
-    uniform_real_distribution<float> rand_dist(0, 1);
-
-    while(!active.empty()) {
-        int rand_active_index = uniform_int_distribution(0, static_cast<int>(active.size() - 1))(gen_);
-        Vector2 active_point = samples_[active[rand_active_index]];
-        float rand_seed = rand_dist(gen_); // used to offset theta
-
-        // checks points radially around active point for an ok candidate
-        bool found_cand = false;
-        for(int i = 0; i < k_; ++i) {
-            float theta = 2 * PI * (rand_seed + 1.0 * i / k_);
-            float r = radius_ + epsilon_; // epsilon ensures distance from active_point
-            Vector2 delta = {r * cos(theta), r * sin(theta)};
-            Vector2 cand = Vector2Add(active_point, delta);
-
-            // point adding was successful!
-            if(try_adding_point(chunk_coord, cand, active)) {
-                found_cand = true;
-                break;
-            }
+            output[i] = samples_[finished_[chunk_coord][i]];
         }
 
-        // no valid candidates - remove active_point from active list
-        if(!found_cand) {
-            int swap = active.back();
-            active.pop_back();
-
-            // don't do swap if the point to remove was already the backmsot
-            if(rand_active_index != active.size()) {
-                active[rand_active_index] = swap;
-            }
-        }
+        return output;
     }
-
-    vector<Vector2> output(finished_[chunk_coord].size());
-    for(int i = 0; i < finished_[chunk_coord].size(); ++i) {
-        output[i] = samples_[finished_[chunk_coord][i]];
-    }
-
-    return output;
 }
 
 bool PoissonDiskSampler::MajorBGCoord::operator<(const MajorBGCoord rhs) const {

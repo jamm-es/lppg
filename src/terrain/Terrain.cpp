@@ -125,8 +125,6 @@ Mesh Terrain::gen_mesh_from_points(const vector<Vector3>& points) const {
 
     }
 
-    UploadMesh(&mesh, false);
-
     return mesh;
 }
 
@@ -299,8 +297,6 @@ Mesh Terrain::gen_mesh_from_heightmap(float heightmap[], int width, int height) 
         }
         min_x_corner += x_gap;
     }
-
-    UploadMesh(&mesh, false);
 
     return mesh;
 }

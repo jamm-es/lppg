@@ -7,14 +7,15 @@ using namespace std;
 
 int main() {
     SetConfigFlags(FLAG_MSAA_4X_HINT);
-    InitWindow(800, 600, "LPPG, the Low Poly Procedural (terrain) Generator");
     SetTargetFPS(60);
+    InitWindow(800, 600, "LPPG, the Low Poly Procedural (terrain) Generator");
+
 
     int height_map_size = 500;
     int display_size = 40;
     float scale_factor = 1;
 
-    ChunkManager chunk_manager(5);
+    ChunkManager chunk_manager(10, 5);
 
     // camera.target - camera.position should always be normalized.
     Camera3D camera = {
@@ -89,10 +90,10 @@ int main() {
         }
 
         // change speed
-        if(IsKeyDown(KEY_COMMA)) {
+        if(IsKeyDown(KEY_PERIOD)) {
             cam_move_speed += 0.01;
         }
-        if(IsKeyDown(KEY_PERIOD)) {
+        if(IsKeyDown(KEY_COMMA)) {
             cam_move_speed -= 0.01;
         }
         if(cam_move_speed < 0) {

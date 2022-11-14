@@ -8,6 +8,7 @@
 #include <vector>
 #include <random>
 #include <map>
+#include <shared_mutex>
 #include "raylib.h"
 #include "ChunkCoord.h"
 
@@ -34,6 +35,7 @@ private:
     float bg_cell_size_;
     int bg_grid_length_;
     mt19937_64 gen_;
+    shared_mutex m_;
     map<MajorBGCoord, vector<int>> bg_grids_;
     map<ChunkCoord, vector<int>> stasis_;
     map<ChunkCoord, vector<int>> finished_;
