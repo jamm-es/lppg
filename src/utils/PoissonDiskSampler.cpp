@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cstdlib>
 #include "raymath.h"
-#include <iostream>
 
 using namespace std;
 
@@ -147,7 +146,7 @@ bool PoissonDiskSampler::try_adding_point(ChunkCoord chunk_coord, Vector2 point,
 // https://www.cs.ubc.ca/~rbridson/docs/bridson-siggraph07-poissondisk.pdf
 vector<Vector2> PoissonDiskSampler::get_points_in_chunk(ChunkCoord chunk_coord) {
     // completely lock out this current chunk_coord
-    finished_write_m_.lock();
+    write_m_.lock();
     mutex_m_.lock();
     scoped_lock read_lock(finished_read_m_[chunk_coord]);
     mutex_m_.unlock();
@@ -155,7 +154,7 @@ vector<Vector2> PoissonDiskSampler::get_points_in_chunk(ChunkCoord chunk_coord) 
     // return samples if this chunk is already done
     auto it = finished_.find(chunk_coord);
     if(it != finished_.end()) {
-        finished_write_m_.unlock(); // releaqse write mutex to let others write
+        write_m_.unlock(); // releaqse write mutex to let others write
         vector<Vector2> points(it->second.size());
         for(int i = 0; i < it->second.size(); ++i) {
             points[i] = samples_.at(it->second.at(i));
@@ -224,7 +223,7 @@ vector<Vector2> PoissonDiskSampler::get_points_in_chunk(ChunkCoord chunk_coord) 
         output[i] = samples_[finished_[chunk_coord][i]];
     }
 
-    finished_write_m_.unlock();
+    write_m_.unlock();
     return output;
 }
 

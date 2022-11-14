@@ -37,7 +37,7 @@ private:
     mt19937_64 gen_;
     mutex mutex_m_;
     map<ChunkCoord, mutex> finished_read_m_;
-    mutex finished_write_m_;
+    mutex write_m_;
     map<MajorBGCoord, vector<int>> bg_grids_;
     map<ChunkCoord, vector<int>> stasis_;
     map<ChunkCoord, vector<int>> finished_;
