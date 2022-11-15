@@ -18,7 +18,7 @@ Terrain::Terrain() {
     height_map_size_ = 500;
     display_size_ = 40;
     scale_factor_ = 1;
-    enable_mountains_ = false;
+    enable_mountains_ = true;
     enable_ground_ = true;
 }
 
@@ -30,9 +30,9 @@ float Terrain::gen_height_at_coord(float x, float z) const {
         FastNoiseLite mountain_noise;
         mountain_noise.SetNoiseType(FastNoiseLite::NoiseType_Cellular);
         mountain_noise.SetFractalType(FastNoiseLite::FractalType_FBm);
-        mountain_noise.SetFrequency(0.002);
+        mountain_noise.SetFrequency(0.0005);
         mountain_noise.SetFractalWeightedStrength(0.3);
-        height += 100*mountain_noise.GetNoise(x*scale_factor_, z*scale_factor_)/scale_factor_;
+        height += pow(100*mountain_noise.GetNoise(x*scale_factor_, z*scale_factor_)/scale_factor_+100, 1.4);
     }
 
     // generate ground bumps with decreasing frequency
@@ -58,7 +58,8 @@ float Terrain::gen_height_at_coord(float x, float z) const {
 }
 
 Mesh Terrain::gen_mesh_from_points(const vector<Vector3>& points) const {
-    Color base_color = {20, 97, 33, 255};
+    Color GRASS_COLOR = {20, 97, 33, 255};
+    Color MOUNTAIN_COLOR = GRAY;
     vector<float> heights(points.size());
     for(int i = 0; i < points.size(); ++i) {
         heights[i] = points[i].y;
@@ -108,11 +109,11 @@ Mesh Terrain::gen_mesh_from_points(const vector<Vector3>& points) const {
         }
 
         int max_amplitude = 20;
-        float hm_scale = (vert_1.y+5)/(10);
+        Color base_color = vert_1.y > 100 ? MOUNTAIN_COLOR : GRASS_COLOR;
         Color color = {
-            static_cast<unsigned char>(hm_scale*(base_color.r+rand()%(max_amplitude*2+1)-max_amplitude)),
-            static_cast<unsigned char>(hm_scale*(base_color.g+rand()%(max_amplitude*2+1)-max_amplitude)),
-            static_cast<unsigned char>(hm_scale*(base_color.b+rand()%(max_amplitude*2+1)-max_amplitude)),
+            static_cast<unsigned char>(base_color.r + rand() % (max_amplitude * 2 + 1) - max_amplitude),
+            static_cast<unsigned char>(base_color.g + rand() % (max_amplitude * 2 + 1) - max_amplitude),
+            static_cast<unsigned char>(base_color.b + rand() % (max_amplitude * 2 + 1) - max_amplitude),
             255
         };
         // set colors

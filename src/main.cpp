@@ -15,7 +15,7 @@ int main() {
     int display_size = 40;
     float scale_factor = 1;
 
-    ChunkManager chunk_manager(10, 5);
+    ChunkManager chunk_manager(10, 2);
 
     // camera.target - camera.position should always be normalized.
     Camera3D camera = {

@@ -18,6 +18,14 @@ ChunkManager::ChunkManager(int render_distance, int max_gpu_io_per_frame, float 
     load(start_x, start_z, true);
 }
 
+ChunkManager::~ChunkManager() {
+    for(auto& p : meshes_) {
+        if(p.second.vaoId != 0) {
+            UnloadMesh(p.second);
+        }
+    }
+}
+
 Mesh ChunkManager::make_mesh(ChunkCoord coord) {
     vector<Vector2> center_points = sampler_.get_points_in_chunk(coord);
 

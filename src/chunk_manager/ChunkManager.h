@@ -26,6 +26,7 @@ private:
     Mesh make_mesh(ChunkCoord coord);
 public:
     ChunkManager(int render_distance=10, int max_gpu_io_per_frame=2, float chunk_size=40, float start_x=0, float start_z=0);
+    ~ChunkManager();
     void load(float x, float z, bool force=false);
     void draw();
 };
